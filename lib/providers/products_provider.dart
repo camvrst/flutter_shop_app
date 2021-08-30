@@ -51,6 +51,8 @@ class ProductsProvider with ChangeNotifier {
     return [..._items];
   }
 
+  // We don't use these 2 methods in here as it's a widget state and not an app state.
+
   // void showFavoritesOnly() {
   //   _showFavoritesOnly = true;
   //   notifyListeners();
