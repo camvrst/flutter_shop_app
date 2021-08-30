@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import '../providers/cart.dart';
+import 'package:provider/provider.dart';
 import '../widgets/products_grid.dart';
+import '../widgets/badge.dart';
 
 enum FilterOptions {
   Favorites,
@@ -44,7 +47,18 @@ class _ProductsOverviewScreenState extends State<ProductsOverviewScreen> {
                 value: FilterOptions.All,
               ),
             ],
-          )
+          ),
+          Consumer<Cart>(
+            // childArg is the iconButton
+            builder: (_, cartData, childArg) => Badge(
+              child: childArg,
+              value: cartData.itemCount.toString(),
+            ),
+            child: IconButton(
+                icon: Icon(Icons.shopping_cart),
+                onPressed: () {},
+              ),
+          ),
         ],
       ),
       //Gridview.builder only shows the items loaded on the screen
