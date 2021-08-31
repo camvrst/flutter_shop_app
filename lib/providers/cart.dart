@@ -25,12 +25,25 @@ class Cart with ChangeNotifier {
   int get itemCount {
     return _items.length;
   }
+
+  // total amount
+  double get totalAmount {
+    var total = 0.0;
+    _items.forEach((key, cartItem) {
+      total += cartItem.price * cartItem.quantity;
+    });
+    return total;
+  }
+
   void addItem(String productId, double price, String name) {
     if (_items.containsKey(productId)) {
       _items.update(
         productId,
-        (existingCartItem) =>
-            CartItem(id: productId, name: name, price: price, quantity: existingCartItem.quantity + 1),
+        (existingCartItem) => CartItem(
+            id: productId,
+            name: name,
+            price: price,
+            quantity: existingCartItem.quantity + 1),
       );
     } else {
       _items.putIfAbsent(
@@ -44,5 +57,11 @@ class Cart with ChangeNotifier {
     }
     // to update when click on add to basket
     notifyListeners();
+  }
+
+  void removeItem(String productId) {
+    _items.remove(productId);
+    notifyListeners();
+
   }
 }

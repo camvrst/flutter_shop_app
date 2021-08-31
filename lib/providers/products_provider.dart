@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_shop_app/widgets/products_grid.dart';
 import './products.dart';
 
 // mixin to merge some properties (heritance)
