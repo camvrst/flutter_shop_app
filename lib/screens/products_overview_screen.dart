@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_shop_app/widgets/app_drawer.dart';
 import '../screens/cart_screen.dart';
 import '../providers/cart.dart';
 import 'package:provider/provider.dart';
@@ -66,6 +67,7 @@ class _ProductsOverviewScreenState extends State<ProductsOverviewScreen> {
       ),
       //Gridview.builder only shows the items loaded on the screen
       body: ProductsGrid(_showOnlyFavorites),
+      drawer: AppDrawer(),
     );
   }
 }
