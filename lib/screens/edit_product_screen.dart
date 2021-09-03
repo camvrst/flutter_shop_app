@@ -16,13 +16,49 @@ class _EditProductScreenState extends State<EditProductScreen> {
   final _imageUrlFocusNode = FocusNode();
   // GlobalKey generes to a type of data
   final _form = GlobalKey<FormState>();
-  var _editedProduct =
-      Products(id: null, name: '', price: 0, description: '', imageUrl: '');
+  var _editedProduct = Products(
+    id: null,
+    name: '',
+    price: 0,
+    description: '',
+    imageUrl: '',
+  );
+  var _isInit = true;
+  var _initValues = {
+    'name': '',
+    'price': '',
+    'imageUrl': '',
+    'description': '',
+    'id': '',
+  };
 
   @override
   void initState() {
     _imageUrlFocusNode.addListener(_updateImageUrl);
     super.initState();
+  }
+
+  @override
+  // only runs if isInit is true
+  void didChangeDependencies() {
+    if (_isInit) {
+      final productId = ModalRoute.of(context).settings.arguments as String;
+      if (productId != null) {
+        _editedProduct = Provider.of<ProductsProvider>(context, listen: false)
+            .findById(productId);
+        _initValues = {
+          'name': _editedProduct.name,
+          'price': _editedProduct.price.toString(),
+          //'imageUrl': _editedProduct.imageUrl,
+          'imageUrl': '',
+          'description': _editedProduct.description,
+          'id': _editedProduct.id,
+        };
+        _imageUrlController.text = _editedProduct.imageUrl;
+      }
+    }
+    _isInit = false;
+    super.didChangeDependencies();
   }
 
   @override
@@ -37,7 +73,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
 
   void _updateImageUrl() {
     if (!_imageUrlFocusNode.hasFocus) {
-       if (_imageUrlController.text.isEmpty ||
+      if (_imageUrlController.text.isEmpty ||
           !_imageUrlController.text.startsWith('http') &&
               !_imageUrlController.text.startsWith('https') ||
           !_imageUrlController.text.startsWith('http') &&
@@ -57,8 +93,16 @@ class _EditProductScreenState extends State<EditProductScreen> {
       return;
     }
     _form.currentState.save();
-    // add the product to the items list with the provider
-    Provider.of<ProductsProvider>(context, listen: false).addProduct(_editedProduct);
+    // if the id is not = null, it means we are editing, not adding a new product.
+    if (_editedProduct.id != null) {
+      Provider.of<ProductsProvider>(context, listen: false)
+          .updateProduct(_editedProduct.id, _editedProduct);
+    } else {
+      // add the product to the items list with the provider
+      Provider.of<ProductsProvider>(context, listen: false)
+          .addProduct(_editedProduct);
+    }
+
     // go back to previous page
     Navigator.of(context).pop();
   }
@@ -77,6 +121,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
           child: ListView(
             children: <Widget>[
               TextFormField(
+                initialValue: _initValues['name'],
                 decoration: InputDecoration(labelText: 'Name of product'),
                 textInputAction: TextInputAction.next,
                 // Validator returns a string
@@ -94,13 +139,15 @@ class _EditProductScreenState extends State<EditProductScreen> {
                   _editedProduct = Products(
                     name: value,
                     price: _editedProduct.price,
-                    id: null,
+                    id: _editedProduct.id,
                     imageUrl: _editedProduct.imageUrl,
                     description: _editedProduct.description,
+                    isFavorite: _editedProduct.isFavorite,
                   );
                 },
               ),
               TextFormField(
+                initialValue: _initValues['price'],
                 decoration: InputDecoration(labelText: 'Price of product'),
                 textInputAction: TextInputAction.next,
                 keyboardType: TextInputType.number,
@@ -110,10 +157,10 @@ class _EditProductScreenState extends State<EditProductScreen> {
                     return 'Please enter a price';
                   }
                   // tryParse returns null if it fails
-                  if(double.tryParse(value) == null) {
+                  if (double.tryParse(value) == null) {
                     return 'Please enetr a valid number';
                   }
-                  if(double.parse(value) <= 0) {
+                  if (double.parse(value) <= 0) {
                     return 'Please enter a number greater than 0';
                   }
                   return null;
@@ -123,14 +170,17 @@ class _EditProductScreenState extends State<EditProductScreen> {
                 },
                 onSaved: (value) {
                   _editedProduct = Products(
-                      name: _editedProduct.name,
-                      price: double.parse(value),
-                      id: null,
-                      imageUrl: _editedProduct.imageUrl,
-                      description: _editedProduct.description);
+                    name: _editedProduct.name,
+                    price: double.parse(value),
+                    id: _editedProduct.id,
+                    imageUrl: _editedProduct.imageUrl,
+                    description: _editedProduct.description,
+                    isFavorite: _editedProduct.isFavorite,
+                  );
                 },
               ),
               TextFormField(
+                initialValue: _initValues['description'],
                 decoration: InputDecoration(labelText: 'Description'),
                 maxLines: 3,
                 keyboardType: TextInputType.multiline,
@@ -146,11 +196,13 @@ class _EditProductScreenState extends State<EditProductScreen> {
                 },
                 onSaved: (value) {
                   _editedProduct = Products(
-                      name: _editedProduct.name,
-                      price: _editedProduct.price,
-                      id: null,
-                      imageUrl: _editedProduct.imageUrl,
-                      description: value);
+                    name: _editedProduct.name,
+                    price: _editedProduct.price,
+                    id: _editedProduct.id,
+                    imageUrl: _editedProduct.imageUrl,
+                    description: value,
+                    isFavorite: _editedProduct.isFavorite,
+                  );
                 },
               ),
               Row(
@@ -173,6 +225,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
                   ),
                   Expanded(
                     child: TextFormField(
+                      // initial values won't work if there is a controller
                       decoration: InputDecoration(labelText: 'Image URL'),
                       keyboardType: TextInputType.url,
                       textInputAction: TextInputAction.done,
@@ -182,10 +235,13 @@ class _EditProductScreenState extends State<EditProductScreen> {
                         if (value.isEmpty) {
                           return 'Please enter an image URL';
                         }
-                        if (!value.startsWith('http') && !value.startsWith('https')) {
+                        if (!value.startsWith('http') &&
+                            !value.startsWith('https')) {
                           return 'Please enter a valid URL';
                         }
-                        if (!value.endsWith('.png') && !value.endsWith('.jpeg') && !value.endsWith('jpg')) {
+                        if (!value.endsWith('.png') &&
+                            !value.endsWith('.jpeg') &&
+                            !value.endsWith('jpg')) {
                           return 'Please enter a valid image URL (png, jpeg or jpg)';
                         }
                         return null;
@@ -196,11 +252,13 @@ class _EditProductScreenState extends State<EditProductScreen> {
                       },
                       onSaved: (value) {
                         _editedProduct = Products(
-                            name: _editedProduct.name,
-                            price: _editedProduct.price,
-                            id: null,
-                            imageUrl: value,
-                            description: _editedProduct.description);
+                          name: _editedProduct.name,
+                          price: _editedProduct.price,
+                          id: _editedProduct.id,
+                          imageUrl: value,
+                          description: _editedProduct.description,
+                          isFavorite: _editedProduct.isFavorite,
+                        );
                       },
                       onEditingComplete: () {
                         setState(() {});
