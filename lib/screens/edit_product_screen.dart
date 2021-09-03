@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_shop_app/providers/products_provider.dart';
+import 'package:provider/provider.dart';
+import '../providers/products.dart';
 
 class EditProductScreen extends StatefulWidget {
   static const routeName = '/edit-product';
@@ -11,6 +14,10 @@ class _EditProductScreenState extends State<EditProductScreen> {
   final _descriptionFocusNode = FocusNode();
   final _imageUrlController = TextEditingController();
   final _imageUrlFocusNode = FocusNode();
+  // GlobalKey generes to a type of data
+  final _form = GlobalKey<FormState>();
+  var _editedProduct =
+      Products(id: null, name: '', price: 0, description: '', imageUrl: '');
 
   @override
   void initState() {
@@ -29,11 +36,31 @@ class _EditProductScreenState extends State<EditProductScreen> {
   }
 
   void _updateImageUrl() {
-    if(!_imageUrlFocusNode.hasFocus) {
-      setState(() {
-        
-      });
+    if (!_imageUrlFocusNode.hasFocus) {
+       if (_imageUrlController.text.isEmpty ||
+          !_imageUrlController.text.startsWith('http') &&
+              !_imageUrlController.text.startsWith('https') ||
+          !_imageUrlController.text.startsWith('http') &&
+              !_imageUrlController.text.startsWith('https')) {
+        return;
+      }
+      setState(() {});
     }
+  }
+
+  // This saveForm needs a global key.
+  // saveForm will tirgger a method on every TextFormField to take the values entered on textinputs
+  void _saveForm() {
+    // returns false if at least one validator returns a string (= error msg)
+    final isValid = _form.currentState.validate();
+    if (!isValid) {
+      return;
+    }
+    _form.currentState.save();
+    // add the product to the items list with the provider
+    Provider.of<ProductsProvider>(context, listen: false).addProduct(_editedProduct);
+    // go back to previous page
+    Navigator.of(context).pop();
   }
 
   @override
@@ -41,17 +68,36 @@ class _EditProductScreenState extends State<EditProductScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Edit product'),
+        actions: [IconButton(onPressed: _saveForm, icon: Icon(Icons.save))],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
+          key: _form,
           child: ListView(
-            children: [
+            children: <Widget>[
               TextFormField(
                 decoration: InputDecoration(labelText: 'Name of product'),
                 textInputAction: TextInputAction.next,
+                // Validator returns a string
+                // returning null means the input is correct
+                validator: (value) {
+                  if (value.isEmpty) {
+                    return 'Please provide a name';
+                  }
+                  return null;
+                },
                 onFieldSubmitted: (_) {
                   FocusScope.of(context).requestFocus(_priceFocusNode);
+                },
+                onSaved: (value) {
+                  _editedProduct = Products(
+                    name: value,
+                    price: _editedProduct.price,
+                    id: null,
+                    imageUrl: _editedProduct.imageUrl,
+                    description: _editedProduct.description,
+                  );
                 },
               ),
               TextFormField(
@@ -59,8 +105,29 @@ class _EditProductScreenState extends State<EditProductScreen> {
                 textInputAction: TextInputAction.next,
                 keyboardType: TextInputType.number,
                 focusNode: _priceFocusNode,
+                validator: (value) {
+                  if (value.isEmpty) {
+                    return 'Please enter a price';
+                  }
+                  // tryParse returns null if it fails
+                  if(double.tryParse(value) == null) {
+                    return 'Please enetr a valid number';
+                  }
+                  if(double.parse(value) <= 0) {
+                    return 'Please enter a number greater than 0';
+                  }
+                  return null;
+                },
                 onFieldSubmitted: (_) {
                   FocusScope.of(context).requestFocus(_descriptionFocusNode);
+                },
+                onSaved: (value) {
+                  _editedProduct = Products(
+                      name: _editedProduct.name,
+                      price: double.parse(value),
+                      id: null,
+                      imageUrl: _editedProduct.imageUrl,
+                      description: _editedProduct.description);
                 },
               ),
               TextFormField(
@@ -68,6 +135,23 @@ class _EditProductScreenState extends State<EditProductScreen> {
                 maxLines: 3,
                 keyboardType: TextInputType.multiline,
                 focusNode: _descriptionFocusNode,
+                validator: (value) {
+                  if (value.isEmpty) {
+                    return 'Please provide a description';
+                  }
+                  if (value.length < 10) {
+                    return 'Should be at least 10 characters long';
+                  }
+                  return null;
+                },
+                onSaved: (value) {
+                  _editedProduct = Products(
+                      name: _editedProduct.name,
+                      price: _editedProduct.price,
+                      id: null,
+                      imageUrl: _editedProduct.imageUrl,
+                      description: value);
+                },
               ),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
@@ -94,13 +178,37 @@ class _EditProductScreenState extends State<EditProductScreen> {
                       textInputAction: TextInputAction.done,
                       controller: _imageUrlController,
                       focusNode: _imageUrlFocusNode,
+                      validator: (value) {
+                        if (value.isEmpty) {
+                          return 'Please enter an image URL';
+                        }
+                        if (!value.startsWith('http') && !value.startsWith('https')) {
+                          return 'Please enter a valid URL';
+                        }
+                        if (!value.endsWith('.png') && !value.endsWith('.jpeg') && !value.endsWith('jpg')) {
+                          return 'Please enter a valid image URL (png, jpeg or jpg)';
+                        }
+                        return null;
+                      },
+                      // onFieldSubm expects a String value. Tht-at's why we c'ant directly pint to that saveForm function.
+                      onFieldSubmitted: (_) {
+                        _saveForm();
+                      },
+                      onSaved: (value) {
+                        _editedProduct = Products(
+                            name: _editedProduct.name,
+                            price: _editedProduct.price,
+                            id: null,
+                            imageUrl: value,
+                            description: _editedProduct.description);
+                      },
                       onEditingComplete: () {
                         setState(() {});
                       },
                     ),
                   )
                 ],
-              )
+              ),
             ],
           ),
         ),
