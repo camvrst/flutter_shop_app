@@ -87,7 +87,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
 
   // This saveForm needs a global key.
   // saveForm will tirgger a method on every TextFormField to take the values entered on textinputs
-  void _saveForm() {
+  Future<void> _saveForm() async {
     // returns false if at least one validator returns a string (= error msg)
     final isValid = _form.currentState.validate();
     if (!isValid) {
@@ -103,16 +103,38 @@ class _EditProductScreenState extends State<EditProductScreen> {
       Provider.of<ProductsProvider>(context, listen: false)
           .updateProduct(_editedProduct.id, _editedProduct);
     } else {
-      // add the product to the items list with the provider
-      Provider.of<ProductsProvider>(context, listen: false)
-          .addProduct(_editedProduct)
-          // go back to previous page once it is added
-          .then((_) {
+      try {
+// add the product to the items list with the provider
+        await Provider.of<ProductsProvider>(context, listen: false)
+            .addProduct(_editedProduct);
+      } catch (error) {
+        showDialog<Null>(
+          context: context,
+          builder: (ctxt) => AlertDialog(
+            title: Text('An error occured'),
+            content: Text('Something went wrong.'),
+            actions: <Widget>[
+              FlatButton(
+                  onPressed: () => Navigator.of(ctxt).pop(),
+                  child: Text('Okay'))
+            ],
+          ),
+        );
+      } finally {
         setState(() {
           _isLoading = false;
         });
+        // go back to previous page once it is added
         Navigator.of(context).pop();
-      });
+      }
+
+      // since addProduct returns a Future, we can use catchError here
+      //.catchError((error) {
+      // inform the user about the error >> throw
+      // this is the return of catchError
+      // triggered once the error is handled
+      //.then((_) {
+
     }
   }
 
