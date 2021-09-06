@@ -87,6 +87,9 @@ class ProductsProvider with ChangeNotifier {
       // this gives us a map, with a nested map
       // print(json.decode(response.body));
       final extractedData = json.decode(response.body) as Map<String, dynamic>;
+      if (extractedData == null) {
+        return;
+      }
       final List<Products> loadedProducts = [];
       extractedData.forEach((productId, productData) {
         // create a new Product for each products in DB
@@ -194,7 +197,7 @@ class ProductsProvider with ChangeNotifier {
       _items.insert(existingProductIndex, existingProduct);
       notifyListeners();
       throw HttpException('Could not delete product.');
-    } 
+    }
     existingProduct = null;
 
     // http.delete(Uri.parse(url));
