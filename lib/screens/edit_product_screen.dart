@@ -97,36 +97,37 @@ class _EditProductScreenState extends State<EditProductScreen> {
     setState(() {
       _isLoading = true;
     });
-
     // if the id is not = null, it means we are editing, not adding a new product.
     if (_editedProduct.id != null) {
-      Provider.of<ProductsProvider>(context, listen: false)
+      await Provider.of<ProductsProvider>(context, listen: false)
           .updateProduct(_editedProduct.id, _editedProduct);
     } else {
       try {
-// add the product to the items list with the provider
+        // add the product to the items list with the provider
         await Provider.of<ProductsProvider>(context, listen: false)
             .addProduct(_editedProduct);
       } catch (error) {
-        showDialog<Null>(
+        await showDialog<Null>(
           context: context,
           builder: (ctxt) => AlertDialog(
             title: Text('An error occured'),
             content: Text('Something went wrong.'),
             actions: <Widget>[
               FlatButton(
-                  onPressed: () => Navigator.of(ctxt).pop(),
-                  child: Text('Okay'))
+                onPressed: () => Navigator.of(ctxt).pop(),
+                child: Text('Okay'),
+              )
             ],
           ),
         );
-      } finally {
-        setState(() {
-          _isLoading = false;
-        });
-        // go back to previous page once it is added
-        Navigator.of(context).pop();
       }
+      // finally {
+      //   setState(() {
+      //     _isLoading = false;
+      //   });
+      //   // go back to previous page once it is added
+      //   Navigator.of(context).pop();
+      // }
 
       // since addProduct returns a Future, we can use catchError here
       //.catchError((error) {
@@ -134,8 +135,11 @@ class _EditProductScreenState extends State<EditProductScreen> {
       // this is the return of catchError
       // triggered once the error is handled
       //.then((_) {
-
     }
+    setState(() {
+      _isLoading = false;
+    });
+    Navigator.of(context).pop();
   }
 
   @override

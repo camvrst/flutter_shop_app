@@ -1,43 +1,44 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_shop_app/models/http_exception.dart';
 import './products.dart';
 import 'package:http/http.dart' as http;
 
 // mixin to merge some properties (heritance)
 class ProductsProvider with ChangeNotifier {
   List<Products> _items = [
-    Products(
-      id: 'p1',
-      name: 'Red Shirt',
-      description: 'A red shirt - it is pretty red!',
-      price: 29.99,
-      imageUrl:
-          'https://cdn.pixabay.com/photo/2016/10/02/22/17/red-t-shirt-1710578_1280.jpg',
-    ),
-    Products(
-      id: 'p2',
-      name: 'Trousers',
-      description: 'A nice pair of trousers.',
-      price: 59.99,
-      imageUrl:
-          'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e8/Trousers%2C_dress_%28AM_1960.022-8%29.jpg/512px-Trousers%2C_dress_%28AM_1960.022-8%29.jpg',
-    ),
-    Products(
-      id: 'p3',
-      name: 'Yellow Scarf',
-      description: 'Warm and cozy - exactly what you need for the winter.',
-      price: 19.99,
-      imageUrl:
-          'https://live.staticflickr.com/4043/4438260868_cc79b3369d_z.jpg',
-    ),
-    Products(
-      id: 'p4',
-      name: 'A Pan',
-      description: 'Prepare any meal you want.',
-      price: 49.99,
-      imageUrl:
-          'https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/Cast-Iron-Pan.jpg/1024px-Cast-Iron-Pan.jpg',
-    ),
+    // Products(
+    //   id: 'p1',
+    //   name: 'Red Shirt',
+    //   description: 'A red shirt - it is pretty red!',
+    //   price: 29.99,
+    //   imageUrl:
+    //       'https://cdn.pixabay.com/photo/2016/10/02/22/17/red-t-shirt-1710578_1280.jpg',
+    // ),
+    // Products(
+    //   id: 'p2',
+    //   name: 'Trousers',
+    //   description: 'A nice pair of trousers.',
+    //   price: 59.99,
+    //   imageUrl:
+    //       'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e8/Trousers%2C_dress_%28AM_1960.022-8%29.jpg/512px-Trousers%2C_dress_%28AM_1960.022-8%29.jpg',
+    // ),
+    // Products(
+    //   id: 'p3',
+    //   name: 'Yellow Scarf',
+    //   description: 'Warm and cozy - exactly what you need for the winter.',
+    //   price: 19.99,
+    //   imageUrl:
+    //       'https://live.staticflickr.com/4043/4438260868_cc79b3369d_z.jpg',
+    // ),
+    // Products(
+    //   id: 'p4',
+    //   name: 'A Pan',
+    //   description: 'Prepare any meal you want.',
+    //   price: 49.99,
+    //   imageUrl:
+    //       'https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/Cast-Iron-Pan.jpg/1024px-Cast-Iron-Pan.jpg',
+    // ),
   ];
 
   // Change view
@@ -77,6 +78,35 @@ class ProductsProvider with ChangeNotifier {
   // communication is made between this class & widgets that are interested.
   // if there is a change, these widgets are rebuild.
 
+  // Fetching the products from DB
+  Future<void> fetchAndSetProducts() async {
+    const url =
+        'https://flutter-shop-app-78020-default-rtdb.europe-west1.firebasedatabase.app/products.json';
+    try {
+      final response = await http.get(Uri.parse(url));
+      // this gives us a map, with a nested map
+      // print(json.decode(response.body));
+      final extractedData = json.decode(response.body) as Map<String, dynamic>;
+      final List<Products> loadedProducts = [];
+      extractedData.forEach((productId, productData) {
+        // create a new Product for each products in DB
+        loadedProducts.add(Products(
+          id: productId,
+          name: productData['name'],
+          description: productData['description'],
+          price: productData['price'],
+          imageUrl: productData['imageUrl'],
+          isFavorite: productData['isFavorite'],
+        ));
+      });
+      // items are replaced with the products fetched
+      _items = loadedProducts;
+      notifyListeners();
+    } catch (error) {
+      throw error;
+    }
+  }
+
   // async always return a Future
   Future<void> addProduct(Products product) async {
     // database url
@@ -109,7 +139,6 @@ class ProductsProvider with ChangeNotifier {
       _items.add(newProduct);
       notifyListeners();
     } catch (error) {
-      print(error);
       // throw takes an error object and creates a new one
       throw error;
     }
@@ -132,9 +161,18 @@ class ProductsProvider with ChangeNotifier {
   //   throw error;
   // });
 
-  void updateProduct(String id, Products newProduct) {
+  Future<void> updateProduct(String id, Products newProduct) async {
     final prodIndex = _items.indexWhere((prod) => prod.id == id);
     if (prodIndex >= 0) {
+      final url =
+          'https://flutter-shop-app-78020-default-rtdb.europe-west1.firebasedatabase.app/products/$id.json';
+      await http.patch(Uri.parse(url),
+          body: json.encode({
+            'name': newProduct.name,
+            'price': newProduct.price,
+            'imageUrl': newProduct.imageUrl,
+            'description': newProduct.description,
+          }));
       _items[prodIndex] = newProduct;
       notifyListeners();
     } else {
@@ -142,8 +180,25 @@ class ProductsProvider with ChangeNotifier {
     }
   }
 
-  void deleteProduct(String id) {
-    _items.removeWhere((prod) => prod.id == id);
+  Future<void> deleteProduct(String id) async {
+    final url =
+        'https://flutter-shop-app-78020-default-rtdb.europe-west1.firebasedatabase.app/products/$id.json';
+    // optional :
+    final existingProductIndex = _items.indexWhere((prod) => prod.id == id);
+    var existingProduct = _items[existingProductIndex];
+    _items.removeAt(existingProductIndex);
     notifyListeners();
+    final response = await http.delete(Uri.parse(url));
+    if (response.statusCode >= 400) {
+      // insure that we re add this product if we fail
+      _items.insert(existingProductIndex, existingProduct);
+      notifyListeners();
+      throw HttpException('Could not delete product.');
+    } 
+    existingProduct = null;
+
+    // http.delete(Uri.parse(url));
+    // _items.removeWhere((prod) => prod.id == id);
+    // notifyListeners();
   }
 }
